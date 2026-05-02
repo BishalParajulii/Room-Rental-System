@@ -41,6 +41,7 @@ class RoomDeleteView(DestroyAPIView):
     serializer_class = RoomDetailSerializer
 
 
+
 class SignupView(CreateAPIView):
     queryset = User.objects.all()
     serializer_class = SignupSerializer

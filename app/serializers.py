@@ -11,6 +11,12 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'is_staff', 'is_superuser']
 
 
+class LandlordBasicSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['username', 'contact_number']
+
+
 class SignupSerializer(serializers.ModelSerializer):
     password2 = serializers.CharField(write_only=True)
     admin_code = serializers.CharField(write_only=True, required=False, allow_blank=True)
@@ -127,10 +133,14 @@ class BookingDetailSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class RoomDetailSerializer(serializers.ModelSerializer):
+class BookingStatusSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Room
-        fields = '__all__'
+        model = Booking
+        fields = [ 'status']
+
+
+
+
 
 
 class RoomCreateSerializer(serializers.ModelSerializer):
@@ -157,3 +167,17 @@ class RoomListSerializer(serializers.ModelSerializer):
         model = Room
         fields = ['id', 'description', 'price', 'location', 'city', 'state']
 
+
+class RoomDetailSerializer(serializers.ModelSerializer):
+    landlord = LandlordBasicSerializer(read_only=True)
+    bookings = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Room
+        fields = '__all__'
+
+    def get_bookings(self, obj):
+        bookings = obj.bookings.all()
+        if bookings.exists():
+            return BookingStatusSerializer(bookings, many=True).data
+        return [{'status': 'open', 'payment_status': 'unpaid'}]

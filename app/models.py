@@ -37,10 +37,9 @@ class Room(models.Model):
     
 class Booking(models.Model):
     STATUS_CHOICES = (
-        ('pending', 'Pending'),
-        ('confirmed', 'Confirmed'),
-        ('cancelled', 'Cancelled'),
-        ('completed', 'Completed'),
+        ('open' , 'Open'),
+        ('booked' , 'booked'),
+        ('cancelled' , 'Cancelled')
     )
 
     PAYMENT_STATUS_CHOICES = (
@@ -56,7 +55,7 @@ class Booking(models.Model):
     guests_count = models.PositiveIntegerField(default=1)
     total_price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='unpaid')
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='open')
     booking_reference = models.CharField(max_length=50, unique=True)
     special_requests = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
