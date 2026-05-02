@@ -1,3 +1,4 @@
+import uuid
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator
@@ -22,12 +23,19 @@ class User(AbstractUser):
 
 
 class Room(models.Model):
+    AVAILABILITY_CHOICES = (
+        ('open', 'Open'),
+        ('booked', 'Booked'),
+        ('unavailable', 'Unavailable'),
+    )
+
     landlord = models.ForeignKey(User, on_delete=models.CASCADE, related_name='rooms')
     description = models.TextField()
     price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     location = models.CharField(max_length=255)
     city = models.CharField(max_length=100)
     state = models.CharField(max_length=100)
+    availability_status = models.CharField(max_length=20, choices=AVAILABILITY_CHOICES, default='open')
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -37,9 +45,9 @@ class Room(models.Model):
     
 class Booking(models.Model):
     STATUS_CHOICES = (
-        ('open' , 'Open'),
-        ('booked' , 'booked'),
-        ('cancelled' , 'Cancelled')
+        ('pending', 'Pending'),
+        ('confirmed', 'Confirmed'),
+        ('cancelled', 'Cancelled'),
     )
 
     PAYMENT_STATUS_CHOICES = (
@@ -51,18 +59,26 @@ class Booking(models.Model):
     tenant = models.ForeignKey(User, on_delete=models.CASCADE, related_name='bookings')
     room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='bookings')
     check_in = models.DateField()
-    check_out = models.DateField()
-    guests_count = models.PositiveIntegerField(default=1)
-    total_price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
+    payment_reference = models.ImageField(upload_to='payment_references/', blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='open')
-    booking_reference = models.CharField(max_length=50, unique=True)
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='unpaid')
+    booking_reference = models.CharField(max_length=50, unique=True, blank=True)
     special_requests = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ['-created_at']
+
+    def save(self, *args, **kwargs):
+        if not self.booking_reference:
+            self.booking_reference = uuid.uuid4().hex[:12].upper()
+
+        super().save(*args, **kwargs)
+
+        if self.room and self.status in ['confirmed', 'cancelled']:
+            self.room.availability_status = 'booked' if self.status == 'confirmed' else 'open'
+            self.room.save(update_fields=['availability_status'])
 
     def __str__(self):
         return f"Booking {self.booking_reference} for {self.tenant.username}"

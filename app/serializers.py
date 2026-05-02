@@ -1,3 +1,4 @@
+from datetime import date
 from django.conf import settings
 from django.contrib.auth import authenticate
 from rest_framework import serializers
@@ -11,10 +12,16 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'is_staff', 'is_superuser']
 
 
+class TenantBasicSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'contact_number']
+
+
 class LandlordBasicSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['username', 'contact_number']
+        fields = ['id', 'username', 'contact_number']
 
 
 class SignupSerializer(serializers.ModelSerializer):
@@ -103,22 +110,39 @@ class LoginSerializer(serializers.Serializer):
         return attrs
 
 
-class RoomSerializer(serializers.ModelSerializer):
+class RoomBasicSerializer(serializers.ModelSerializer):
     class Meta:
         model = Room
-        fields = '__all__'
+        fields = ['id', 'description', 'location', 'city', 'state', 'availability_status']
 
 
 class BookingSerializer(serializers.ModelSerializer):
+    tenant = TenantBasicSerializer(read_only=True)
+    room = RoomBasicSerializer(read_only=True)
+
     class Meta:
         model = Booking
-        fields = '__all__'
+        fields = ['id', 'tenant', 'room', 'check_in', 'status', 'payment_status', 'payment_reference', 'booking_reference', 'special_requests', 'created_at']
+        read_only_fields = ['id', 'tenant', 'booking_reference', 'created_at']
 
 
 class BookingCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Booking
-        fields = ['tenant', 'room', 'check_in', 'check_out', 'guests_count', 'special_requests']
+        fields = ['room', 'check_in', 'payment_reference', 'special_requests']
+
+    def validate(self, attrs):
+        room = attrs.get('room')
+        check_in = attrs.get('check_in')
+        if room and room.availability_status == 'booked':
+            raise serializers.ValidationError('Room is currently booked and unavailable for new reservations.')
+        if check_in and check_in < date.today():
+            raise serializers.ValidationError('check_in must be today or a future date.')
+        return attrs
+
+    def create(self, validated_data, **kwargs):
+        tenant = kwargs.get('tenant') or self.context['request'].user
+        return Booking.objects.create(tenant=tenant, status='pending', **validated_data)
 
 
 class BookingUpdateSerializer(serializers.ModelSerializer):
@@ -128,16 +152,19 @@ class BookingUpdateSerializer(serializers.ModelSerializer):
 
 
 class BookingDetailSerializer(serializers.ModelSerializer):
+    tenant = TenantBasicSerializer(read_only=True)
+    room = RoomBasicSerializer(read_only=True)
+
     class Meta:
         model = Booking
-        fields = '__all__'
+        fields = ['id', 'tenant', 'room', 'check_in', 'status', 'payment_status', 'payment_reference', 'booking_reference', 'special_requests', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'tenant', 'booking_reference', 'created_at', 'updated_at']
 
 
 class BookingStatusSerializer(serializers.ModelSerializer):
     class Meta:
         model = Booking
-        fields = [ 'status']
-
+        fields = ['id', 'check_in', 'status']
 
 
 
@@ -148,12 +175,9 @@ class RoomCreateSerializer(serializers.ModelSerializer):
         model = Room
         fields = ['description', 'price', 'location', 'city', 'state']
 
-    def create(self, validated_data):
-        user = self.context['request'].user
-        instance = Room(**validated_data)
-        instance.landlord = user
-        instance.save()
-        return instance
+    def create(self, validated_data, **kwargs):
+        landlord = kwargs.get('landlord') or self.context['request'].user
+        return Room.objects.create(landlord=landlord, **validated_data)
 
 
 class RoomUpdateSerializer(serializers.ModelSerializer):
@@ -163,9 +187,11 @@ class RoomUpdateSerializer(serializers.ModelSerializer):
 
 
 class RoomListSerializer(serializers.ModelSerializer):
+    landlord = LandlordBasicSerializer(read_only=True)
+
     class Meta:
         model = Room
-        fields = ['id', 'description', 'price', 'location', 'city', 'state']
+        fields = ['id', 'description', 'price', 'location', 'city', 'state', 'availability_status', 'landlord']
 
 
 class RoomDetailSerializer(serializers.ModelSerializer):
@@ -180,4 +206,4 @@ class RoomDetailSerializer(serializers.ModelSerializer):
         bookings = obj.bookings.all()
         if bookings.exists():
             return BookingStatusSerializer(bookings, many=True).data
-        return [{'status': 'open', 'payment_status': 'unpaid'}]
+        return [{'status': 'open'}]

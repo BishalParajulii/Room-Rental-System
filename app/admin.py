@@ -11,13 +11,13 @@ class UserAdmin(admin.ModelAdmin):
 
 @admin.register(Room)
 class RoomAdmin(admin.ModelAdmin):
-    list_display = ('description', 'price', 'location', 'city', 'state', 'landlord', 'created_at')
-    list_filter = ('city', 'state', 'created_at')
+    list_display = ('description', 'price', 'location', 'city', 'state', 'availability_status', 'landlord', 'created_at')
+    list_filter = ('city', 'state', 'availability_status', 'created_at')
     search_fields = ('description', 'location', 'city')
 
 @admin.register(Booking)
 class BookingAdmin(admin.ModelAdmin):
-    list_display = ('booking_reference', 'tenant', 'room', 'check_in', 'check_out', 'status', 'payment_status', 'total_price')
+    list_display = ('booking_reference', 'tenant', 'room', 'check_in', 'status', 'payment_status', 'payment_reference', 'created_at')
     list_filter = ('status', 'payment_status', 'created_at')
     search_fields = ('booking_reference', 'tenant__username', 'room__description')
 

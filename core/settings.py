@@ -1,7 +1,10 @@
 
+import os
+
 SECRET_KEY = 'django-insecure-0=5z$r3d@mc0jwb#0!4v8iohxz2=4@ctjwz%z8b3l9q*6y$9a'
 DEBUG = True
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ALLOWED_HOSTS = ['*']
 
 AUTH_USER_MODEL = 'app.User'
@@ -109,6 +112,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 
 
