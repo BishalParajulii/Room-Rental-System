@@ -1,11 +1,12 @@
 from django.shortcuts import render
 from django.contrib.auth import authenticate
 from .models import User, Room, Booking, Payment, Review
-from rest_framework.generics import ListAPIView, CreateAPIView, RetrieveAPIView, UpdateAPIView, DestroyAPIView
+from rest_framework.generics import ListAPIView, CreateAPIView, RetrieveAPIView, UpdateAPIView, DestroyAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from django_filters import rest_framework as filters
 from rest_framework.authtoken.models import Token
 from .permissions import IsLandlordOrAdmin, IsTenantOrAdmin
 from .serializers import (
@@ -17,6 +18,8 @@ from .serializers import (
     BookingCreateSerializer,
     BookingUpdateSerializer,
     BookingDetailSerializer,
+    ReviewSerializer,
+    ReviewCreateSerializer,
     SignupSerializer,
     LoginSerializer,
     UserSerializer,
@@ -27,6 +30,9 @@ from .serializers import (
 class RoomListView(ListAPIView):
     queryset = Room.objects.all()
     serializer_class = RoomListSerializer
+    filter_backends = [filters.DjangoFilterBackend]
+    filterset_fields = ['location', 'city', 'state', 'availability_status']
+    
     
 class RoomDetailView(RetrieveAPIView):
     queryset = Room.objects.all()
@@ -109,6 +115,29 @@ class BookingDeleteView(DestroyAPIView):
     permission_classes = [IsAuthenticated, IsTenantOrAdmin]
 
 
+class ReviewListView(ListAPIView):
+    serializer_class = ReviewSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        return Review.objects.filter(room_id=self.kwargs['room_pk']).order_by('-created_at')
+
+
+class ReviewCreateView(CreateAPIView):
+    queryset = Review.objects.all()
+    serializer_class = ReviewCreateSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.user)
+
+
+class ReviewDetailView(RetrieveUpdateDestroyAPIView):
+    queryset = Review.objects.all()
+    serializer_class = ReviewSerializer
+    permission_classes = [IsAuthenticated, IsTenantOrAdmin]
+
+
 class SignupView(CreateAPIView):
     queryset = User.objects.all()
     serializer_class = SignupSerializer
@@ -131,3 +160,5 @@ class LoginView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+        
+

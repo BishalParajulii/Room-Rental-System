@@ -1,8 +1,9 @@
 from datetime import date
 from django.conf import settings
 from django.contrib.auth import authenticate
+from django.db.models import Avg
 from rest_framework import serializers
-from .models import User, Room, Booking
+from .models import User, Room, Booking, Review
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -167,7 +168,35 @@ class BookingStatusSerializer(serializers.ModelSerializer):
         fields = ['id', 'check_in', 'status']
 
 
+class ReviewSerializer(serializers.ModelSerializer):
+    tenant = TenantBasicSerializer(read_only=True)
 
+    class Meta:
+        model = Review
+        fields = ['id', 'room', 'tenant', 'rating', 'comment', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'tenant', 'created_at', 'updated_at']
+
+
+class ReviewCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Review
+        fields = ['room', 'rating', 'comment']
+
+    def validate(self, attrs):
+        room = attrs.get('room')
+        user = self.context['request'].user
+
+        if Review.objects.filter(room=room, tenant=user).exists():
+            raise serializers.ValidationError('You have already reviewed this room.')
+
+        if not Booking.objects.filter(room=room, tenant=user, status='confirmed').exists():
+            raise serializers.ValidationError('You can only review a room after a confirmed booking.')
+
+        return attrs
+
+    def create(self, validated_data):
+        tenant = self.context['request'].user
+        return Review.objects.create(tenant=tenant, **validated_data)
 
 
 class RoomCreateSerializer(serializers.ModelSerializer):
@@ -188,15 +217,23 @@ class RoomUpdateSerializer(serializers.ModelSerializer):
 
 class RoomListSerializer(serializers.ModelSerializer):
     landlord = LandlordBasicSerializer(read_only=True)
+    average_rating = serializers.SerializerMethodField()
 
     class Meta:
         model = Room
-        fields = ['id', 'description', 'price', 'location', 'city', 'state', 'availability_status', 'landlord']
+        fields = ['id', 'description', 'price', 'location', 'city', 'state', 'availability_status', 'landlord', 'average_rating']
+
+    def get_average_rating(self, obj):
+        avg = obj.reviews.aggregate(avg_rating=Avg('rating'))['avg_rating']
+        return round(avg, 1) if avg is not None else None
 
 
 class RoomDetailSerializer(serializers.ModelSerializer):
     landlord = LandlordBasicSerializer(read_only=True)
     bookings = serializers.SerializerMethodField()
+    average_rating = serializers.SerializerMethodField()
+    review_count = serializers.SerializerMethodField()
+    reviews = ReviewSerializer(many=True, read_only=True)
 
     class Meta:
         model = Room
@@ -207,3 +244,10 @@ class RoomDetailSerializer(serializers.ModelSerializer):
         if bookings.exists():
             return BookingStatusSerializer(bookings, many=True).data
         return [{'status': 'open'}]
+
+    def get_average_rating(self, obj):
+        avg = obj.reviews.aggregate(avg_rating=Avg('rating'))['avg_rating']
+        return round(avg, 1) if avg is not None else None
+
+    def get_review_count(self, obj):
+        return obj.reviews.count()

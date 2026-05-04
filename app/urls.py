@@ -12,6 +12,9 @@ from .views import (
     BookingCreateView,
     BookingUpdateView,
     BookingDeleteView,
+    ReviewListView,
+    ReviewCreateView,
+    ReviewDetailView,
     SignupView,
     LoginView,
 )
@@ -32,4 +35,8 @@ urlpatterns = [
     path('api/bookings/<int:pk>/', BookingDetailView.as_view(), name='booking-detail'),
     path('api/bookings/<int:pk>/update/', BookingUpdateView.as_view(), name='booking-update'),
     path('api/bookings/<int:pk>/delete/', BookingDeleteView.as_view(), name='booking-delete'),
+
+    path('api/rooms/<int:room_pk>/reviews/', ReviewListView.as_view(), name='room-review-list'),
+    path('api/rooms/<int:room_pk>/reviews/create/', ReviewCreateView.as_view(), name='room-review-create'),
+    path('api/reviews/<int:pk>/', ReviewDetailView.as_view(), name='review-detail'),
 ]
