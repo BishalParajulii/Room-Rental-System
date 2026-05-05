@@ -3,7 +3,7 @@ from django.conf import settings
 from django.contrib.auth import authenticate
 from django.db.models import Avg
 from rest_framework import serializers
-from .models import User, Room, Booking, Review
+from .models import User, Room, Booking, Review, Message
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -251,3 +251,23 @@ class RoomDetailSerializer(serializers.ModelSerializer):
 
     def get_review_count(self, obj):
         return obj.reviews.count()
+
+
+class ChatUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'role', 'profile_picture']
+
+
+class MessageSerializer(serializers.ModelSerializer):
+    sender_detail = ChatUserSerializer(source='sender', read_only=True)
+    receiver_detail = ChatUserSerializer(source='receiver', read_only=True)
+
+    class Meta:
+        model = Message
+        fields = ['id', 'sender', 'receiver', 'room', 'content', 'is_read', 'created_at', 'sender_detail', 'receiver_detail']
+        read_only_fields = ['id', 'sender', 'created_at']
+
+    def create(self, validated_data):
+        validated_data['sender'] = self.context['request'].user
+        return super().create(validated_data)

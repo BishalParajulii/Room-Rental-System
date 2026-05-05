@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.contrib.auth import authenticate
-from .models import User, Room, Booking, Payment, Review
+from django.db.models import Q
+from .models import User, Room, Booking, Payment, Review, Message
 from rest_framework.generics import ListAPIView, CreateAPIView, RetrieveAPIView, UpdateAPIView, DestroyAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -23,6 +24,8 @@ from .serializers import (
     SignupSerializer,
     LoginSerializer,
     UserSerializer,
+    MessageSerializer,
+    ChatUserSerializer,
 )
 
 
@@ -142,10 +145,12 @@ class SignupView(CreateAPIView):
     queryset = User.objects.all()
     serializer_class = SignupSerializer
     permission_classes = [AllowAny]
+    authentication_classes = []
 
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
+    authentication_classes = []
     serializer_class = LoginSerializer
 
     def post(self, request, *args, **kwargs):
@@ -162,3 +167,42 @@ class LoginView(APIView):
         )
         
 
+class MessageListCreateView(CreateAPIView):
+    queryset = Message.objects.all()
+    serializer_class = MessageSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(sender=self.request.user)
+
+
+class ChatHistoryView(ListAPIView):
+    serializer_class = MessageSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        other_user_id = self.kwargs['user_id']
+        return Message.objects.filter(
+            (Q(sender=self.request.user) & Q(receiver_id=other_user_id)) |
+            (Q(sender_id=other_user_id) & Q(receiver=self.request.user))
+        ).order_by('created_at')
+
+
+class ConversationListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        # Get all users who have sent messages to me or received messages from me
+        sent_to = Message.objects.filter(sender=user).values_list('receiver', flat=True)
+        received_from = Message.objects.filter(receiver=user).values_list('sender', flat=True)
+        
+        user_ids = set(list(sent_to) + list(received_from))
+        users = User.objects.filter(id__in=user_ids)
+        serializer = ChatUserSerializer(users, many=True)
+        return Response(serializer.data)
+
+
+
+def chat_view(request):
+    return render(request, 'app/chat.html')

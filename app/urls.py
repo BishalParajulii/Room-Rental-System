@@ -17,6 +17,10 @@ from .views import (
     ReviewDetailView,
     SignupView,
     LoginView,
+    MessageListCreateView,
+    ChatHistoryView,
+    ConversationListView,
+    chat_view,
 )
 
 urlpatterns = [
@@ -39,4 +43,10 @@ urlpatterns = [
     path('api/rooms/<int:room_pk>/reviews/', ReviewListView.as_view(), name='room-review-list'),
     path('api/rooms/<int:room_pk>/reviews/create/', ReviewCreateView.as_view(), name='room-review-create'),
     path('api/reviews/<int:pk>/', ReviewDetailView.as_view(), name='review-detail'),
+
+    # Chat Endpoints
+    path('api/chat/send/', MessageListCreateView.as_view(), name='chat-send'),
+    path('api/chat/history/<int:user_id>/', ChatHistoryView.as_view(), name='chat-history'),
+    path('api/chat/conversations/', ConversationListView.as_view(), name='chat-conversations'),
+    path('chat/', chat_view, name='chat-ui'),
 ]
