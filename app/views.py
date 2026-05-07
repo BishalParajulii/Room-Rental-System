@@ -88,6 +88,8 @@ class BookingListView(ListAPIView):
         user = self.request.user
         if user.is_superuser or (hasattr(user, 'role') and user.role == 'admin'):
             return Booking.objects.all()
+        if user.role == 'landlord':
+            return Booking.objects.filter(room__landlord=user)
         return Booking.objects.filter(tenant=user)
 
 
@@ -109,7 +111,19 @@ class BookingCreateView(CreateAPIView):
 class BookingUpdateView(UpdateAPIView):
     queryset = Booking.objects.all()
     serializer_class = BookingUpdateSerializer
-    permission_classes = [IsAuthenticated, IsTenantOrAdmin]
+    permission_classes = [IsAuthenticated] # We check object permission in logic if needed or just use both
+
+    def get_object(self):
+        obj = super().get_object()
+        # Landlord of the room or the tenant who made it or admin
+        user = self.request.user
+        if user.is_superuser or user.role == 'admin':
+            return obj
+        if user.role == 'landlord' and obj.room.landlord == user:
+            return obj
+        if user.role == 'tenant' and obj.tenant == user:
+            return obj
+        self.permission_denied(self.request)
 
 
 class BookingDeleteView(DestroyAPIView):
@@ -206,3 +220,9 @@ class ConversationListView(APIView):
 
 def chat_view(request):
     return render(request, 'app/chat.html')
+
+def dashboard_view(request):
+    return render(request, 'app/dashboard.html')
+
+def login_page_view(request):
+    return render(request, 'app/login.html')

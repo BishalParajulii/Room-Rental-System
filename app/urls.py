@@ -21,6 +21,8 @@ from .views import (
     ChatHistoryView,
     ConversationListView,
     chat_view,
+    dashboard_view,
+    login_page_view,
 )
 
 urlpatterns = [
@@ -49,4 +51,6 @@ urlpatterns = [
     path('api/chat/history/<int:user_id>/', ChatHistoryView.as_view(), name='chat-history'),
     path('api/chat/conversations/', ConversationListView.as_view(), name='chat-conversations'),
     path('chat/', chat_view, name='chat-ui'),
+    path('login/', login_page_view, name='login-page'),
+    path('', dashboard_view, name='dashboard'),
 ]

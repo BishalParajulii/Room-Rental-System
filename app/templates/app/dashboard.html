@@ -1,0 +1,233 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Room Rental - Premium Dashboard</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'app/css/dashboard.css' %}">
+</head>
+<body class="light-mode">
+    <div id="app">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <div class="logo">
+                    <i class="fas fa-home-alt"></i>
+                    <span>RoomRental</span>
+                </div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <ul>
+                    <li class="nav-item active" data-view="overview">
+                        <a href="javascript:void(0)"><i class="fas fa-th-large"></i> <span>Overview</span></a>
+                    </li>
+                    <li class="nav-item" data-view="rooms">
+                        <a href="javascript:void(0)"><i class="fas fa-bed"></i> <span>Rooms</span></a>
+                    </li>
+                    <li class="nav-item" data-view="bookings">
+                        <a href="javascript:void(0)"><i class="fas fa-calendar-check"></i> <span>Bookings</span></a>
+                    </li>
+                    <li class="nav-item" data-view="chat">
+                        <a href="javascript:void(0)"><i class="fas fa-comment-dots"></i> <span>Messages</span></a>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <div class="avatar" id="sidebar-avatar">U</div>
+                    <div class="user-info">
+                        <h4 id="sidebar-username">User</h4>
+                        <p id="sidebar-role">Tenant</p>
+                    </div>
+                </div>
+                <button class="logout-btn" onclick="app.logout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="top-header">
+                <div class="search-bar">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Search rooms, locations...">
+                </div>
+                <div class="header-actions">
+                    <button id="theme-toggle" class="icon-btn"><i class="fas fa-moon"></i></button>
+                    <button class="icon-btn notification-btn"><i class="fas fa-bell"></i><span class="badge"></span></button>
+                    <button class="primary-btn" id="add-room-trigger" style="display: none;">
+                        <i class="fas fa-plus"></i> Add Room
+                    </button>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="content-viewport" id="content-viewport">
+                <!-- Overview View (Default) -->
+                <div id="view-overview" class="view active">
+                    <div class="welcome-section">
+                        <h1>Welcome back, <span id="welcome-name">User</span>!</h1>
+                        <p>Here's what's happening with your rentals today.</p>
+                    </div>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon blue"><i class="fas fa-door-open"></i></div>
+                            <div class="stat-info">
+                                <h3>0</h3>
+                                <p>Total Rooms</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon purple"><i class="fas fa-calendar-day"></i></div>
+                            <div class="stat-info">
+                                <h3>0</h3>
+                                <p>Active Bookings</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon green"><i class="fas fa-wallet"></i></div>
+                            <div class="stat-info">
+                                <h3>Rs. 0</h3>
+                                <p>Total Earnings</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="recent-activity">
+                        <h2>Recent Activity</h2>
+                        <div class="activity-list" id="activity-list">
+                            <p class="empty-msg">No recent activity to show.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Rooms View -->
+                <div id="view-rooms" class="view">
+                    <div class="view-header">
+                        <h2>Available Rooms</h2>
+                        <div class="filter-group">
+                            <select id="location-filter">
+                                <option value="">All Locations</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="rooms-grid" id="rooms-grid">
+                        <!-- Rooms will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- Bookings View -->
+                <div id="view-bookings" class="view">
+                    <div class="view-header">
+                        <h2>My Bookings</h2>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Booking ID</th>
+                                    <th>Room</th>
+                                    <th>Check-in</th>
+                                    <th>Status</th>
+                                    <th>Payment</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bookings-table-body">
+                                <!-- Bookings loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Chat View -->
+                <div id="view-chat" class="view">
+                    <div class="chat-container">
+                        <div class="chat-sidebar">
+                            <div class="chat-sidebar-header">
+                                <h3>Messages</h3>
+                                <div class="chat-search">
+                                    <i class="fas fa-search"></i>
+                                    <input type="text" id="chat-search-input" placeholder="Search chats...">
+                                </div>
+                            </div>
+                            <div class="conversation-list" id="conv-list">
+                                <!-- Conversations here -->
+                            </div>
+                        </div>
+                        <div class="chat-main">
+                            <div class="chat-header" id="active-chat-header">
+                                <div class="avatar" id="active-avatar">?</div>
+                                <div class="chat-info">
+                                    <h4 id="active-user-name">Select a conversation</h4>
+                                    <p id="active-user-status">Start chatting now</p>
+                                </div>
+                            </div>
+                            <div class="messages-container" id="messages-box">
+                                <div class="chat-empty">
+                                    <i class="fas fa-comments"></i>
+                                    <p>Select a user to view message history</p>
+                                </div>
+                            </div>
+                            <div class="chat-input-area">
+                                <input type="text" id="message-input" placeholder="Type your message here...">
+                                <button id="send-msg-btn"><i class="fas fa-paper-plane"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        </div>
+
+        <div class="modal" id="add-room-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Add New Room</h2>
+                    <button class="close-modal">&times;</button>
+                </div>
+                <form id="add-room-form">
+                    <div class="form-grid">
+                        <div class="form-group full-width">
+                            <label>Description</label>
+                            <textarea id="room-desc" required placeholder="Describe the room..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Price (NPR)</label>
+                            <input type="number" id="room-price" required min="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Location</label>
+                            <input type="text" id="room-location" required>
+                        </div>
+                        <div class="form-group">
+                            <label>City</label>
+                            <input type="text" id="room-city" required>
+                        </div>
+                        <div class="form-group">
+                            <label>State</label>
+                            <input type="text" id="room-state" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="primary-btn">Create Room</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- App JS -->
+    <script src="{% static 'app/js/dashboard.js' %}?v=1.6"></script>
+</body>
+</html>
