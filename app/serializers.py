@@ -141,8 +141,8 @@ class BookingCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('check_in must be today or a future date.')
         return attrs
 
-    def create(self, validated_data, **kwargs):
-        tenant = kwargs.get('tenant') or self.context['request'].user
+    def create(self, validated_data):
+        tenant = validated_data.pop('tenant', None) or self.context['request'].user
         return Booking.objects.create(tenant=tenant, status='pending', **validated_data)
 
 
@@ -202,10 +202,10 @@ class ReviewCreateSerializer(serializers.ModelSerializer):
 class RoomCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Room
-        fields = ['description', 'price', 'location', 'city', 'state']
+        fields = ['description', 'price', 'location', 'city', 'state', 'image']
 
-    def create(self, validated_data, **kwargs):
-        landlord = kwargs.get('landlord') or self.context['request'].user
+    def create(self, validated_data):
+        landlord = validated_data.pop('landlord', None) or self.context['request'].user
         return Room.objects.create(landlord=landlord, **validated_data)
 
 
@@ -221,7 +221,7 @@ class RoomListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Room
-        fields = ['id', 'description', 'price', 'location', 'city', 'state', 'availability_status', 'landlord', 'average_rating']
+        fields = ['id', 'description', 'price', 'location', 'city', 'state', 'availability_status', 'landlord', 'average_rating', 'image']
 
     def get_average_rating(self, obj):
         avg = obj.reviews.aggregate(avg_rating=Avg('rating'))['avg_rating']

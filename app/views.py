@@ -122,6 +122,10 @@ class BookingUpdateView(UpdateAPIView):
         if user.role == 'landlord' and obj.room.landlord == user:
             return obj
         if user.role == 'tenant' and obj.tenant == user:
+            # Tenants can only cancel their booking
+            new_status = self.request.data.get('status')
+            if new_status and new_status != 'cancelled':
+                self.permission_denied(self.request, message="Tenants can only cancel their own bookings.")
             return obj
         self.permission_denied(self.request)
 

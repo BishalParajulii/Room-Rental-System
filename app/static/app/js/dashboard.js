@@ -199,7 +199,9 @@ const app = {
 
             grid.innerHTML = rooms.map(room => `
                 <div class="room-card">
-                    <div class="room-img"><i class="fas fa-image"></i></div>
+                    <div class="room-img">
+                        ${room.image ? `<img src="${room.image}" alt="Room" style="width: 100%; height: 100%; object-fit: cover;">` : '<i class="fas fa-image"></i>'}
+                    </div>
                     <div class="room-content">
                         <div class="room-meta">
                             <span><i class="fas fa-map-marker-alt"></i> ${room.city}, ${room.state}</span>
@@ -208,7 +210,7 @@ const app = {
                         <h3>${room.description.substring(0, 50)}...</h3>
                         <p class="room-price">Rs. ${room.price}</p>
                         <div style="display: flex; gap: 0.5rem;">
-                            <button class="primary-btn" style="flex: 1;" onclick="app.createBooking(${room.id})">Book Now</button>
+                            ${room.availability_status === 'open' ? `<button class="primary-btn" style="flex: 1;" onclick="app.createBooking(${room.id})">Book Now</button>` : `<button class="primary-btn" style="flex: 1; opacity: 0.6; cursor: not-allowed;" disabled>Booked</button>`}
                             <button class="icon-btn" title="Message Landlord" onclick="app.startChat(${room.landlord.id}, '${room.landlord.username}')">
                                 <i class="fas fa-comment"></i>
                             </button>
@@ -236,23 +238,26 @@ const app = {
 
     async handleAddRoom(e) {
         e.preventDefault();
-        const payload = {
-            description: document.getElementById('room-desc').value,
-            price: document.getElementById('room-price').value,
-            location: document.getElementById('room-location').value,
-            city: document.getElementById('room-city').value,
-            state: document.getElementById('room-state').value,
-            availability_status: 'open'
-        };
+        const formData = new FormData();
+        formData.append('description', document.getElementById('room-desc').value);
+        formData.append('price', document.getElementById('room-price').value);
+        formData.append('location', document.getElementById('room-location').value);
+        formData.append('city', document.getElementById('room-city').value);
+        formData.append('state', document.getElementById('room-state').value);
+        
+        const imageFile = document.getElementById('room-image').files[0];
+        if (imageFile) {
+            formData.append('image', imageFile);
+        }
 
         try {
             const res = await fetch('/api/rooms/create/', {
                 method: 'POST',
                 headers: { 
-                    'Authorization': `Token ${this.token}`,
-                    'Content-Type': 'application/json'
+                    'Authorization': `Token ${this.token}`
+                    // Note: Browser sets Content-Type automatically for FormData
                 },
-                body: JSON.stringify(payload)
+                body: formData
             });
 
             if (res.ok) {
@@ -281,24 +286,49 @@ const app = {
                 return;
             }
 
-            tbody.innerHTML = bookings.map(b => `
-                <tr>
-                    <td>#${b.booking_reference}</td>
-                    <td>Room #${b.room}</td>
-                    <td>${new Date(b.check_in).toLocaleDateString()}</td>
-                    <td><span class="status-tag ${b.status}">${b.status}</span></td>
-                    <td><span class="status-tag ${b.payment_status}">${b.payment_status}</span></td>
-                    <td>
-                        <div style="display: flex; gap: 0.5rem;">
-                            <button class="icon-btn" title="View Details" onclick="app.viewBooking(${b.id})"><i class="fas fa-eye"></i></button>
-                            ${(this.user.role === 'landlord' || this.user.role === 'admin') && b.status === 'pending' ? `
-                                <button class="icon-btn success" title="Accept" onclick="app.updateBookingStatus(${b.id}, 'approved')"><i class="fas fa-check"></i></button>
-                                <button class="icon-btn danger" title="Reject" onclick="app.updateBookingStatus(${b.id}, 'cancelled')"><i class="fas fa-times"></i></button>
-                            ` : ''}
-                        </div>
-                    </td>
-                </tr>
-            `).join('');
+            tbody.innerHTML = bookings.map(b => {
+                const statusIcon = b.status === 'confirmed' ? 'fa-check-circle' : (b.status === 'pending' ? 'fa-clock' : 'fa-times-circle');
+                const paymentIcon = b.payment_status === 'paid' ? 'fa-check' : 'fa-wallet';
+                
+                return `
+                    <tr>
+                        <td>
+                            <div style="font-weight: 600; color: var(--primary);">#${b.booking_reference}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">${new Date(b.created_at).toLocaleDateString()}</div>
+                        </td>
+                        <td>
+                            <div style="font-weight: 500;">Room #${b.room.id}</div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted);">${b.room.city}</div>
+                        </td>
+                        <td>
+                            <div style="font-weight: 500;">${new Date(b.check_in).toLocaleDateString()}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">Check-in Date</div>
+                        </td>
+                        <td><span class="status-tag ${b.status}"><i class="fas ${statusIcon}"></i> ${b.status}</span></td>
+                        <td><span class="status-tag ${b.payment_status}"><i class="fas ${paymentIcon}"></i> ${b.payment_status}</span></td>
+                        <td>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <button class="icon-btn" title="View Details" onclick="app.viewBooking(${b.id})">
+                                    <i class="fas fa-expand-alt"></i>
+                                </button>
+                                ${(this.user.role === 'landlord' || this.user.role === 'admin') && b.status === 'pending' ? `
+                                    <button class="icon-btn success" title="Accept Booking" onclick="app.updateBookingStatus(${b.id}, 'confirmed')">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button class="icon-btn danger" title="Reject Booking" onclick="app.updateBookingStatus(${b.id}, 'cancelled')">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                ` : ''}
+                                ${this.user.role === 'tenant' && b.status === 'pending' ? `
+                                    <button class="icon-btn danger" title="Cancel Request" onclick="app.updateBookingStatus(${b.id}, 'cancelled')">
+                                        <i class="fas fa-ban"></i>
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
         } catch (err) {
             tbody.innerHTML = '<tr><td colspan="6" class="error-msg">Failed to load bookings.</td></tr>';
         }
@@ -333,10 +363,10 @@ const app = {
     },
 
     async updateBookingStatus(bookingId, newStatus) {
-        if (!confirm(`Are you sure you want to ${newStatus === 'approved' ? 'accept' : 'reject'} this booking?`)) return;
+        if (!confirm(`Are you sure you want to ${newStatus === 'confirmed' ? 'accept' : (newStatus === 'cancelled' ? 'cancel/reject' : 'update')} this booking?`)) return;
         
         try {
-            const res = await fetch(`/api/bookings/update/${bookingId}/`, {
+            const res = await fetch(`/api/bookings/${bookingId}/update/`, {
                 method: 'PATCH',
                 headers: { 
                     'Authorization': `Token ${this.token}`,
@@ -355,8 +385,71 @@ const app = {
         }
     },
 
-    viewBooking(id) {
-        alert("Booking details view coming soon! ID: " + id);
+    async viewBooking(id) {
+        try {
+            const res = await fetch(`/api/bookings/${id}/`, {
+                headers: { 'Authorization': `Token ${this.token}` }
+            });
+            const b = await res.json();
+            
+            const content = document.getElementById('booking-details-content');
+            const footer = document.getElementById('booking-modal-footer');
+            
+            content.innerHTML = `
+                <div class="booking-details-grid">
+                    <div class="detail-item">
+                        <label>Booking Reference</label>
+                        <p>#${b.booking_reference}</p>
+                    </div>
+                    <div class="detail-item">
+                        <label>Current Status</label>
+                        <p><span class="status-tag ${b.status}">${b.status}</span></p>
+                    </div>
+                    <div class="detail-item">
+                        <label>Check-in Date</label>
+                        <p>${new Date(b.check_in).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                    </div>
+                    <div class="detail-item">
+                        <label>Payment Status</label>
+                        <p><span class="status-tag ${b.payment_status}">${b.payment_status}</span></p>
+                    </div>
+                    <div class="detail-item">
+                        <label>Room Details</label>
+                        <p>${b.room.description}</p>
+                        <span style="font-size: 0.8rem; color: var(--text-muted);">${b.room.location}, ${b.room.city}</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>${this.user.role === 'landlord' ? 'Tenant' : 'Landlord'} Information</label>
+                        <p>${b.tenant.username}</p>
+                        <span style="font-size: 0.8rem; color: var(--text-muted);"><i class="fas fa-phone-alt"></i> ${b.tenant.contact_number || 'No contact provided'}</span>
+                    </div>
+                    <div class="detail-item full-width" style="background: var(--bg-main); padding: 1rem; border-radius: 12px; margin-top: 1rem;">
+                        <label>Special Requests</label>
+                        <p style="font-style: ${b.special_requests ? 'normal' : 'italic'}; color: ${b.special_requests ? 'inherit' : 'var(--text-muted)'};">
+                            ${b.special_requests || 'No special requests submitted.'}
+                        </p>
+                    </div>
+                </div>
+            `;
+            
+            footer.innerHTML = '';
+            if (b.status === 'pending') {
+                if (this.user.role === 'landlord' || this.user.role === 'admin') {
+                    footer.innerHTML = `
+                        <button class="primary-btn success" onclick="app.updateBookingStatus(${b.id}, 'confirmed'); app.toggleModal('booking-details-modal', false)">Confirm Booking</button>
+                        <button class="primary-btn danger" onclick="app.updateBookingStatus(${b.id}, 'cancelled'); app.toggleModal('booking-details-modal', false)">Reject Booking</button>
+                    `;
+                } else if (this.user.role === 'tenant') {
+                    footer.innerHTML = `
+                        <button class="primary-btn danger" onclick="app.updateBookingStatus(${b.id}, 'cancelled'); app.toggleModal('booking-details-modal', false)">Cancel Booking</button>
+                    `;
+                }
+            }
+            
+            this.toggleModal('booking-details-modal', true);
+        } catch (err) {
+            console.error("Error loading booking details", err);
+        }
     },
 
     // Chat Logic

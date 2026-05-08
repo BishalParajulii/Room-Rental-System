@@ -36,6 +36,7 @@ class Room(models.Model):
     city = models.CharField(max_length=100)
     state = models.CharField(max_length=100)
     availability_status = models.CharField(max_length=20, choices=AVAILABILITY_CHOICES, default='open')
+    image = models.ImageField(upload_to='room_images/', blank=True, null=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
