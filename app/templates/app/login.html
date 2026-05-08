@@ -9,13 +9,16 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --primary: #6366f1;
-            --primary-hover: #4f46e5;
-            --bg: #f8fafc;
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --accent: #0f766e;
+            --bg: #f5f7fb;
             --card: #ffffff;
-            --text: #1e293b;
-            --text-muted: #64748b;
-            --border: #e2e8f0;
+            --text: #172033;
+            --text-muted: #667085;
+            --border: #d8e0ea;
+            --shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+            --radius: 8px;
         }
 
         * {
@@ -26,22 +29,26 @@
         }
 
         body {
-            background-color: var(--bg);
             color: var(--text);
-            height: 100vh;
+            min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            padding: 1rem;
+            background:
+                linear-gradient(135deg, rgba(37, 99, 235, 0.08), transparent 34%),
+                linear-gradient(315deg, rgba(15, 118, 110, 0.1), transparent 30%),
+                var(--bg);
         }
 
         .login-container {
             background-color: var(--card);
-            padding: 3rem;
-            border-radius: 24px;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            padding: 2.25rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
             width: 100%;
-            max-width: 450px;
+            max-width: 440px;
             text-align: center;
             animation: slideUp 0.5s ease-out;
         }
@@ -54,12 +61,24 @@
         .logo {
             font-size: 2rem;
             font-weight: 700;
-            color: var(--primary);
-            margin-bottom: 1rem;
+            color: var(--text);
+            margin-bottom: 1.25rem;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 0.75rem;
+        }
+
+        .logo i {
+            width: 44px;
+            height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius);
+            color: #fff;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            box-shadow: 0 10px 22px rgba(37, 99, 235, 0.18);
         }
 
         h1 {
@@ -69,7 +88,7 @@
 
         p.subtitle {
             color: var(--text-muted);
-            margin-bottom: 2.5rem;
+            margin-bottom: 2rem;
         }
 
         .form-group {
@@ -99,8 +118,8 @@
         input {
             width: 100%;
             padding: 0.75rem 1rem 0.75rem 2.75rem;
-            border: 1.5px solid var(--border);
-            border-radius: 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
             outline: none;
             transition: all 0.2s;
             font-size: 1rem;
@@ -117,7 +136,7 @@
             background-color: var(--primary);
             color: white;
             border: none;
-            border-radius: 12px;
+            border-radius: var(--radius);
             font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
