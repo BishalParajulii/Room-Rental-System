@@ -7,7 +7,8 @@ const app = {
     user: JSON.parse(localStorage.getItem('chat_user')),
     activeView: 'overview',
     activeChatUser: null,
-    pollInterval: null,
+    chatSocket: null,
+    renderedMessageIds: new Set(),
     searchTerm: '',
     locationFilter: '',
 
@@ -91,6 +92,7 @@ const app = {
             window.location.href = '/login/';
         } else {
             this.updateUserUI();
+            this.connectChatSocket();
             this.loadViewData('overview');
         }
     },
@@ -110,6 +112,7 @@ const app = {
     },
 
     logout() {
+        if (this.chatSocket) this.chatSocket.close();
         localStorage.removeItem('chat_token');
         localStorage.removeItem('chat_user');
         window.location.reload();
@@ -453,6 +456,28 @@ const app = {
     },
 
     // Chat Logic
+    connectChatSocket() {
+        if (!this.token || (this.chatSocket && this.chatSocket.readyState <= WebSocket.OPEN)) return;
+
+        const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        this.chatSocket = new WebSocket(`${protocol}://${window.location.host}/ws/chat/?token=${encodeURIComponent(this.token)}`);
+
+        this.chatSocket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.type === 'chat.message') {
+                this.handleIncomingMessage(data.message);
+            }
+        };
+
+        this.chatSocket.onclose = () => {
+            setTimeout(() => this.connectChatSocket(), 2000);
+        };
+
+        this.chatSocket.onerror = (error) => {
+            console.error("Chat socket error", error);
+        };
+    },
+
     async loadConversations() {
         const listEl = document.getElementById('conv-list');
         const searchInput = document.getElementById('chat-search-input');
@@ -498,6 +523,7 @@ const app = {
         console.log("Opening chat with:", name, "ID:", id);
         this.activeChatUser = id;
         this.lastMessageCount = 0;
+        this.renderedMessageIds = new Set();
         
         const nameEl = document.getElementById('active-user-name');
         const avatarEl = document.getElementById('active-avatar');
@@ -513,8 +539,6 @@ const app = {
         }
         
         this.loadHistory(true);
-        if (this.pollInterval) clearInterval(this.pollInterval);
-        this.pollInterval = setInterval(() => this.loadHistory(false), 3000);
         
         this.loadConversations();
     },
@@ -531,9 +555,8 @@ const app = {
 
             if (!box) return;
 
-            // Only re-render if message count changed to prevent jitter
-            if (messages.length === this.lastMessageCount && !forceScroll) return;
             this.lastMessageCount = messages.length;
+            this.renderedMessageIds = new Set(messages.map(msg => msg.id));
 
             if (messages.length === 0) {
                 box.innerHTML = '<div class="chat-empty"><p>No messages yet.</p></div>';
@@ -572,6 +595,50 @@ const app = {
         }
     },
 
+    handleIncomingMessage(message) {
+        const messageSender = Number(message.sender);
+        const messageReceiver = Number(message.receiver);
+        const currentUserId = this.user ? Number(this.user.id) : 0;
+        const activeChatId = Number(this.activeChatUser);
+        const belongsToActiveChat = activeChatId && (
+            (messageSender === currentUserId && messageReceiver === activeChatId) ||
+            (messageSender === activeChatId && messageReceiver === currentUserId)
+        );
+
+        this.loadConversations();
+
+        if (!belongsToActiveChat || this.activeView !== 'chat') return;
+        if (this.renderedMessageIds.has(message.id)) return;
+
+        const box = document.getElementById('messages-box');
+        if (!box) return;
+
+        const emptyState = box.querySelector('.chat-empty');
+        if (emptyState) box.innerHTML = '';
+
+        const atBottom = box.scrollHeight - box.scrollTop <= box.clientHeight + 150;
+        this.renderedMessageIds.add(message.id);
+
+        const previousMessage = box.querySelector('.message:last-of-type');
+        const previousDate = previousMessage ? previousMessage.getAttribute('data-date') : null;
+        const messageDate = new Date(message.created_at).toLocaleDateString();
+        if (messageDate !== previousDate) {
+            const displayDate = messageDate === new Date().toLocaleDateString() ? 'Today' : messageDate;
+            box.insertAdjacentHTML('beforeend', `<div class="date-divider"><span>${displayDate}</span></div>`);
+        }
+
+        box.insertAdjacentHTML('beforeend', `
+            <div class="message ${messageSender === currentUserId ? 'sent' : 'received'}" data-date="${messageDate}">
+                <div class="msg-content">${message.content}</div>
+                <span class="time">${new Date(message.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+            </div>
+        `);
+
+        if (atBottom || messageSender === currentUserId) {
+            box.scrollTop = box.scrollHeight;
+        }
+    },
+
     async sendMessage() {
         const input = document.getElementById('message-input');
         const content = input.value.trim();
@@ -582,7 +649,16 @@ const app = {
         }
         if (!content) return;
 
-        // Optimistic UI could go here, but let's keep it simple for now
+        if (this.chatSocket && this.chatSocket.readyState === WebSocket.OPEN) {
+            this.chatSocket.send(JSON.stringify({
+                type: 'chat.message',
+                receiver: this.activeChatUser,
+                content: content
+            }));
+            input.value = '';
+            return;
+        }
+
         try {
             const res = await fetch('/api/chat/send/', {
                 method: 'POST',
@@ -595,7 +671,6 @@ const app = {
 
             if (res.ok) {
                 input.value = '';
-                this.loadHistory(true);
             }
         } catch (err) {
             console.error("Send error", err);

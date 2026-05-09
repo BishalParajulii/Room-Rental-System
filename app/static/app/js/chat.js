@@ -1,7 +1,8 @@
 let currentUser = null;
 let token = localStorage.getItem('chat_token');
 let activeUserId = null;
-let pollInterval = null;
+let chatSocket = null;
+let renderedMessageIds = new Set();
 
 if (token) {
     showChat();
@@ -40,9 +41,32 @@ async function login() {
 }
 
 function logout() {
+    if (chatSocket) chatSocket.close();
     localStorage.removeItem('chat_token');
     localStorage.removeItem('chat_user');
     location.reload();
+}
+
+function connectChatSocket() {
+    if (!token || (chatSocket && chatSocket.readyState <= WebSocket.OPEN)) return;
+
+    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    chatSocket = new WebSocket(`${protocol}://${window.location.host}/ws/chat/?token=${encodeURIComponent(token)}`);
+
+    chatSocket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'chat.message') {
+            handleIncomingMessage(data.message);
+        }
+    };
+
+    chatSocket.onclose = () => {
+        setTimeout(connectChatSocket, 2000);
+    };
+
+    chatSocket.onerror = (error) => {
+        console.error("Chat socket error:", error);
+    };
 }
 
 function showChat() {
@@ -58,10 +82,8 @@ function showChat() {
         userDisplay.textContent = currentUser.username;
     }
     
+    connectChatSocket();
     loadConversations();
-    
-    // Auto-refresh conversations every 10 seconds
-    setInterval(loadConversations, 10000);
 }
 
 async function loadConversations() {
@@ -98,6 +120,7 @@ async function loadConversations() {
 
 function selectUser(id, name) {
     activeUserId = id;
+    renderedMessageIds = new Set();
     const nameEl = document.getElementById('active-user-name');
     const avatarEl = document.getElementById('active-avatar');
     const statusEl = document.getElementById('active-user-status');
@@ -111,10 +134,6 @@ function selectUser(id, name) {
     items.forEach(item => item.classList.remove('active'));
     
     loadHistory();
-    
-    // Clear old interval and set new one for history
-    if (pollInterval) clearInterval(pollInterval);
-    pollInterval = setInterval(loadHistory, 3000); // Poll every 3 seconds for active chat
 }
 
 async function loadHistory() {
@@ -135,6 +154,7 @@ async function loadHistory() {
         }
 
         const atBottom = box.scrollHeight - box.scrollTop <= box.clientHeight + 100;
+        renderedMessageIds = new Set(messages.map(msg => msg.id));
 
         box.innerHTML = messages.map(msg => `
             <div class="message ${msg.sender === currentUser.id ? 'sent' : 'received'}">
@@ -151,12 +171,59 @@ async function loadHistory() {
     }
 }
 
+function handleIncomingMessage(message) {
+    if (!currentUser) return;
+
+    const senderId = Number(message.sender);
+    const receiverId = Number(message.receiver);
+    const currentUserId = Number(currentUser.id);
+    const openChatId = Number(activeUserId);
+    const belongsToActiveChat = openChatId && (
+        (senderId === currentUserId && receiverId === openChatId) ||
+        (senderId === openChatId && receiverId === currentUserId)
+    );
+
+    loadConversations();
+
+    if (!belongsToActiveChat || renderedMessageIds.has(message.id)) return;
+
+    const box = document.getElementById('messages-box');
+    if (!box) return;
+
+    const emptyState = box.querySelector('.empty-state');
+    if (emptyState) box.innerHTML = '';
+
+    const atBottom = box.scrollHeight - box.scrollTop <= box.clientHeight + 100;
+    renderedMessageIds.add(message.id);
+
+    box.insertAdjacentHTML('beforeend', `
+        <div class="message ${senderId === currentUserId ? 'sent' : 'received'}">
+            ${message.content}
+            <span class="time">${new Date(message.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+        </div>
+    `);
+
+    if (atBottom || senderId === currentUserId) {
+        box.scrollTop = box.scrollHeight;
+    }
+}
+
 async function sendMessage() {
     const input = document.getElementById('message-input');
     if (!input) return;
     
     const content = input.value.trim();
     if (!content || !activeUserId || !token) return;
+
+    if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+        chatSocket.send(JSON.stringify({
+            type: 'chat.message',
+            receiver: activeUserId,
+            content: content
+        }));
+        input.value = '';
+        return;
+    }
 
     try {
         const res = await fetch('/api/chat/send/', {
@@ -170,7 +237,6 @@ async function sendMessage() {
 
         if (res.ok) {
             input.value = '';
-            loadHistory();
         }
     } catch (err) {
         console.error("Failed to send message:", err);

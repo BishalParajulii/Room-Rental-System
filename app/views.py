@@ -1,6 +1,8 @@
 from django.shortcuts import render
 from django.contrib.auth import authenticate
 from django.db.models import Q
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from .models import User, Room, Booking, Payment, Review, Message
 from rest_framework.generics import ListAPIView, CreateAPIView, RetrieveAPIView, UpdateAPIView, DestroyAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.views import APIView
@@ -27,6 +29,7 @@ from .serializers import (
     MessageSerializer,
     ChatUserSerializer,
 )
+from .consumers import broadcast_message
 
 
 # Create your views here.
@@ -191,7 +194,10 @@ class MessageListCreateView(CreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):
-        serializer.save(sender=self.request.user)
+        message = serializer.save(sender=self.request.user)
+        channel_layer = get_channel_layer()
+        if channel_layer:
+            async_to_sync(broadcast_message)(channel_layer, MessageSerializer(message).data)
 
 
 class ChatHistoryView(ListAPIView):
