@@ -17,6 +17,7 @@ from .views import (
     ReviewDetailView,
     SignupView,
     LoginView,
+    CurrentUserView,
     MessageListCreateView,
     ChatHistoryView,
     ConversationListView,
@@ -28,6 +29,7 @@ from .views import (
 urlpatterns = [
     path('api/signup/', SignupView.as_view(), name='api-signup'),
     path('api/login/', LoginView.as_view(), name='api-login'),
+    path('api/me/', CurrentUserView.as_view(), name='api-me'),
 
     path('api/rooms/', RoomListView.as_view(), name='room-list'),
     path('api/rooms/open/', OpenRoomListView.as_view(), name='room-open-list'),

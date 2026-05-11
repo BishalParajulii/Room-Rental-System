@@ -31,6 +31,9 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         if not receiver_id or not message_content:
             await self.send_json({'type': 'chat.error', 'message': 'receiver and content are required.'})
             return
+        if str(receiver_id) == str(self.user.id):
+            await self.send_json({'type': 'chat.error', 'message': 'You cannot send messages to yourself.'})
+            return
 
         message = await self.create_message(receiver_id, message_content, content.get('room'))
         if not message:
@@ -44,6 +47,8 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
 
     @database_sync_to_async
     def create_message(self, receiver_id, content, room_id=None):
+        if str(receiver_id) == str(self.user.id):
+            return None
         if not User.objects.filter(id=receiver_id).exists():
             return None
 

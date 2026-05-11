@@ -251,7 +251,9 @@ body.dark-mode .top-header {
 .chat-search input,
 .form-group input,
 .form-group textarea,
+.filter-group input,
 .view-header select,
+.form-group select,
 .chat-input-area input {
     width: 100%;
     border: 1px solid var(--border);
@@ -337,6 +339,26 @@ textarea:focus {
     transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
 
+.secondary-btn {
+    min-height: 40px;
+    padding: 0.62rem 0.9rem;
+    background: var(--surface);
+    color: var(--text-main);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.secondary-btn:hover {
+    border-color: rgba(37, 99, 235, 0.35);
+    color: var(--primary);
+}
+
 .primary-btn:hover {
     background: var(--primary-hover);
     box-shadow: 0 10px 22px rgba(37, 99, 235, 0.22);
@@ -349,6 +371,18 @@ textarea:focus {
 
 .primary-btn.danger {
     background: var(--danger);
+}
+
+.primary-btn.muted {
+    background: var(--surface-muted);
+    color: var(--text-muted);
+    box-shadow: none;
+}
+
+.primary-btn:disabled {
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
 }
 
 .content-viewport {
@@ -457,10 +491,33 @@ textarea:focus {
 .activity-list {
     min-height: 90px;
     display: grid;
-    place-items: center;
+    gap: 0.6rem;
     border: 1px dashed var(--border);
     border-radius: var(--radius);
     background: var(--surface-muted);
+    padding: 0.75rem;
+}
+
+.activity-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+}
+
+.activity-item div {
+    min-width: 0;
+    display: grid;
+    gap: 0.12rem;
+}
+
+.activity-item span:not(.status-tag) {
+    color: var(--text-muted);
+    font-size: 0.82rem;
 }
 
 .view-header {
@@ -475,9 +532,20 @@ textarea:focus {
     margin-bottom: 0;
 }
 
-.view-header select {
+.view-subtitle {
+    margin-top: 0.25rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.view-header select,
+.filter-group input {
     min-height: 40px;
     padding: 0.55rem 2rem 0.55rem 0.75rem;
+}
+
+.filter-group {
+    width: min(280px, 100%);
 }
 
 .table-container {
@@ -618,6 +686,23 @@ textarea:focus {
     margin-bottom: 1rem;
 }
 
+.room-address {
+    min-height: 1.2rem;
+    margin-top: -0.35rem;
+    margin-bottom: 0.6rem;
+    color: var(--text-muted);
+    font-size: 0.84rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.room-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.5rem;
+}
+
 .room-meta {
     display: flex;
     align-items: center;
@@ -704,13 +789,62 @@ textarea:focus {
 }
 
 .form-group input,
-.form-group textarea {
+.form-group textarea,
+.form-group select {
     padding: 0.72rem 0.8rem;
 }
 
 .form-group textarea {
     min-height: 110px;
     resize: vertical;
+}
+
+.booking-summary {
+    display: grid;
+    gap: 0.2rem;
+    margin-bottom: 1rem;
+    padding: 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-muted);
+}
+
+.booking-summary span {
+    color: var(--text-muted);
+    font-size: 0.86rem;
+}
+
+.booking-summary b {
+    color: var(--primary);
+}
+
+.toast-container {
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 1200;
+    display: grid;
+    gap: 0.65rem;
+    width: min(360px, calc(100vw - 2rem));
+}
+
+.toast {
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--primary);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text-main);
+    box-shadow: var(--shadow-soft);
+    font-weight: 700;
+}
+
+.toast.success {
+    border-left-color: var(--success);
+}
+
+.toast.error {
+    border-left-color: var(--danger);
 }
 
 .chat-container {

@@ -112,9 +112,11 @@ class LoginSerializer(serializers.Serializer):
 
 
 class RoomBasicSerializer(serializers.ModelSerializer):
+    landlord = LandlordBasicSerializer(read_only=True)
+
     class Meta:
         model = Room
-        fields = ['id', 'description', 'location', 'city', 'state', 'availability_status']
+        fields = ['id', 'description', 'price', 'location', 'city', 'state', 'availability_status', 'landlord', 'image']
 
 
 class BookingSerializer(serializers.ModelSerializer):
@@ -135,8 +137,16 @@ class BookingCreateSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         room = attrs.get('room')
         check_in = attrs.get('check_in')
+        user = self.context['request'].user
+
+        if getattr(user, 'role', None) != 'tenant':
+            raise serializers.ValidationError('Only tenants can request room bookings.')
         if room and room.availability_status == 'booked':
             raise serializers.ValidationError('Room is currently booked and unavailable for new reservations.')
+        if room and room.landlord_id == user.id:
+            raise serializers.ValidationError('You cannot book your own room.')
+        if room and Booking.objects.filter(room=room, tenant=user, status='pending').exists():
+            raise serializers.ValidationError('You already have a pending booking request for this room.')
         if check_in and check_in < date.today():
             raise serializers.ValidationError('check_in must be today or a future date.')
         return attrs
@@ -267,6 +277,16 @@ class MessageSerializer(serializers.ModelSerializer):
         model = Message
         fields = ['id', 'sender', 'receiver', 'room', 'content', 'is_read', 'created_at', 'sender_detail', 'receiver_detail']
         read_only_fields = ['id', 'sender', 'created_at']
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        sender = request.user if request else None
+        receiver = attrs.get('receiver')
+
+        if sender and receiver and sender.id == receiver.id:
+            raise serializers.ValidationError('You cannot send messages to yourself.')
+
+        return attrs
 
     def create(self, validated_data):
         validated_data['sender'] = self.context['request'].user

@@ -166,6 +166,68 @@
             color: var(--primary);
             text-decoration: none;
             font-weight: 600;
+            cursor: pointer;
+        }
+
+        .auth-tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            padding: 0.35rem;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+        }
+
+        .auth-tab {
+            min-height: 40px;
+            border: 0;
+            border-radius: var(--radius);
+            background: transparent;
+            color: var(--text-muted);
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .auth-tab.active {
+            background: var(--card);
+            color: var(--primary);
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+        }
+
+        .auth-form {
+            display: none;
+        }
+
+        .auth-form.active {
+            display: block;
+        }
+
+        select,
+        textarea {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            outline: none;
+            transition: all 0.2s;
+            font-size: 1rem;
+            background: #fff;
+            color: var(--text);
+        }
+
+        textarea {
+            min-height: 88px;
+            resize: vertical;
+        }
+
+        .home-link {
+            display: inline-flex;
+            margin-top: 1rem;
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 700;
         }
     </style>
 </head>
@@ -175,10 +237,15 @@
             <i class="fas fa-home-alt"></i>
             <span>RoomRental</span>
         </div>
-        <h1>Welcome Back</h1>
-        <p class="subtitle">Please enter your details to sign in</p>
+        <h1 id="auth-title">Welcome Back</h1>
+        <p class="subtitle" id="auth-subtitle">Sign in to book rooms, message landlords, and manage rentals.</p>
+
+        <div class="auth-tabs">
+            <button class="auth-tab active" type="button" data-mode="login">Sign In</button>
+            <button class="auth-tab" type="button" data-mode="signup">Create Account</button>
+        </div>
         
-        <form id="login-form">
+        <form id="login-form" class="auth-form active">
             <div class="form-group">
                 <label>Username</label>
                 <div class="input-wrapper">
@@ -199,12 +266,112 @@
             <p id="error-msg" class="error-msg"></p>
         </form>
 
+        <form id="signup-form" class="auth-form">
+            <div class="form-group">
+                <label>Account Type</label>
+                <select id="signup-role">
+                    <option value="tenant">Tenant</option>
+                    <option value="landlord">Landlord</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Username</label>
+                <div class="input-wrapper">
+                    <i class="fas fa-user"></i>
+                    <input type="text" id="signup-username" placeholder="Choose a username" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Email</label>
+                <div class="input-wrapper">
+                    <i class="fas fa-envelope"></i>
+                    <input type="email" id="signup-email" placeholder="you@example.com">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Contact Number</label>
+                <div class="input-wrapper">
+                    <i class="fas fa-phone"></i>
+                    <input type="text" id="signup-contact" placeholder="Phone number">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Password</label>
+                <div class="input-wrapper">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="signup-password" placeholder="Create a password" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Confirm Password</label>
+                <div class="input-wrapper">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="signup-password2" placeholder="Repeat your password" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Bio</label>
+                <textarea id="signup-bio" placeholder="Short introduction"></textarea>
+            </div>
+
+            <button type="submit" class="login-btn">Create Account</button>
+            <p id="signup-error-msg" class="error-msg"></p>
+        </form>
+
         <div class="footer-links">
-            Don't have an account? <a href="#">Create one</a>
+            <span id="footer-text">Don't have an account?</span> <a id="footer-toggle">Create one</a>
         </div>
+        <a href="/" class="home-link">Browse rooms without signing in</a>
     </div>
 
     <script>
+        const authTitle = document.getElementById('auth-title');
+        const authSubtitle = document.getElementById('auth-subtitle');
+        const footerText = document.getElementById('footer-text');
+        const footerToggle = document.getElementById('footer-toggle');
+
+        function apiError(data, fallback) {
+            if (!data) return fallback;
+            if (typeof data === 'string') return data;
+            if (Array.isArray(data)) return data.join(' ');
+            if (data.detail) return data.detail;
+            if (data.non_field_errors) return data.non_field_errors.join(' ');
+            const firstKey = Object.keys(data)[0];
+            const firstValue = firstKey ? data[firstKey] : null;
+            if (Array.isArray(firstValue)) return `${firstKey}: ${firstValue.join(' ')}`;
+            return firstValue ? `${firstKey}: ${firstValue}` : fallback;
+        }
+
+        function setMode(mode) {
+            const isLogin = mode === 'login';
+            document.querySelectorAll('.auth-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.mode === mode);
+            });
+            document.getElementById('login-form').classList.toggle('active', isLogin);
+            document.getElementById('signup-form').classList.toggle('active', !isLogin);
+            authTitle.textContent = isLogin ? 'Welcome Back' : 'Create Account';
+            authSubtitle.textContent = isLogin
+                ? 'Sign in to book rooms, message landlords, and manage rentals.'
+                : 'Create an account to book rooms or list your own rentals.';
+            footerText.textContent = isLogin ? "Don't have an account?" : 'Already have an account?';
+            footerToggle.textContent = isLogin ? 'Create one' : 'Sign in';
+        }
+
+        document.querySelectorAll('.auth-tab').forEach(tab => {
+            tab.addEventListener('click', () => setMode(tab.dataset.mode));
+        });
+
+        footerToggle.addEventListener('click', () => {
+            const loginActive = document.getElementById('login-form').classList.contains('active');
+            setMode(loginActive ? 'signup' : 'login');
+        });
+
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const user = document.getElementById('username').value;
@@ -240,10 +407,49 @@
             }
         });
 
-        // Redirect if already logged in
-        if (localStorage.getItem('chat_token')) {
-            window.location.href = '/';
-        }
+        document.getElementById('signup-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const errorEl = document.getElementById('signup-error-msg');
+            const btn = e.target.querySelector('button');
+
+            btn.disabled = true;
+            btn.textContent = 'Creating account...';
+            errorEl.textContent = '';
+
+            const payload = {
+                role: document.getElementById('signup-role').value,
+                username: document.getElementById('signup-username').value.trim(),
+                email: document.getElementById('signup-email').value.trim(),
+                contact_number: document.getElementById('signup-contact').value.trim(),
+                password: document.getElementById('signup-password').value,
+                password2: document.getElementById('signup-password2').value,
+                bio: document.getElementById('signup-bio').value.trim()
+            };
+
+            try {
+                const res = await fetch('/api/signup/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json().catch(() => null);
+
+                if (res.ok) {
+                    document.getElementById('username').value = payload.username;
+                    document.getElementById('password').value = payload.password;
+                    setMode('login');
+                    document.getElementById('error-msg').textContent = 'Account created. Sign in to continue.';
+                    e.target.reset();
+                } else {
+                    errorEl.textContent = apiError(data, 'Could not create account. Please check the form.');
+                }
+            } catch (err) {
+                errorEl.textContent = 'Connection error. Please try again.';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Create Account';
+            }
+        });
     </script>
 </body>
 </html>

@@ -99,7 +99,18 @@ class BookingListView(ListAPIView):
 class BookingDetailView(RetrieveAPIView):
     queryset = Booking.objects.all()
     serializer_class = BookingDetailSerializer
-    permission_classes = [IsAuthenticated, IsTenantOrAdmin]
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        obj = super().get_object()
+        user = self.request.user
+        if user.is_superuser or getattr(user, 'role', None) == 'admin':
+            return obj
+        if obj.tenant == user:
+            return obj
+        if getattr(user, 'role', None) == 'landlord' and obj.room.landlord == user:
+            return obj
+        self.permission_denied(self.request)
 
 
 class BookingCreateView(CreateAPIView):
@@ -186,6 +197,13 @@ class LoginView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class CurrentUserView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response(UserSerializer(request.user).data, status=status.HTTP_200_OK)
         
 
 class MessageListCreateView(CreateAPIView):
@@ -206,6 +224,8 @@ class ChatHistoryView(ListAPIView):
 
     def get_queryset(self):
         other_user_id = self.kwargs['user_id']
+        if int(other_user_id) == self.request.user.id:
+            return Message.objects.none()
         return Message.objects.filter(
             (Q(sender=self.request.user) & Q(receiver_id=other_user_id)) |
             (Q(sender_id=other_user_id) & Q(receiver=self.request.user))
